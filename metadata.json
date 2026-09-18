@@ -1,0 +1,6 @@
+{
+  "name": "Gestão de SST - Cursos e Treinamentos",
+  "description": "Sistema completo para gestão de treinamentos de Segurança do Trabalho baseado em Normas Regulamentadoras (NRs), com dashboard analítico e controle de validades.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

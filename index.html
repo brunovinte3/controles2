@@ -1,0 +1,163 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de SST - Cursos e Treinamentos</title>
+    <meta name="description" content="Sistema completo para gestão de treinamentos de Segurança do Trabalho baseado em Normas Regulamentadoras (NRs), com dashboard analítico e controle de validades.">
+    <meta property="og:title" content="Gestão de SST - Cursos e Treinamentos">
+    <meta property="og:description" content="Sistema completo para gestão de treinamentos de Segurança do Trabalho baseado em Normas Regulamentadoras (NRs), com dashboard analítico e controle de validades.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                dark: '#181436',
+                canvas: '#1F1B43',
+                sidebar: '#241E54',
+                sidebarHover: '#31296D',
+                active: '#583FBC',
+                primary: '#5E3BEE',
+                secondary: '#00D26A',
+                purpleSoft: '#EEEBFA',
+                greenSoft: '#E6FAF0',
+                cardText: '#181236',
+                muted: '#8E88B8',
+                borderDark: '#362D78',
+                borderLight: '#ECE9F7',
+              }
+            },
+            fontFamily: {
+              sans: ['Plus Jakarta Sans', 'Inter', 'sans-serif'],
+            },
+            animation: {
+              'bounce-short': 'bounce 1s ease-in-out 1',
+              'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            }
+          }
+        }
+      }
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        body { 
+          font-family: 'Plus Jakarta Sans', 'Inter', sans-serif; 
+          background: linear-gradient(135deg, #181436 0%, #201A49 50%, #292258 100%);
+          background-attachment: fixed;
+          color: #181236;
+          min-height: 100vh;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .dark body {
+          background: linear-gradient(135deg, #120F2B 0%, #1A153D 50%, #221B4F 100%);
+          background-attachment: fixed;
+          color: #F4F3FB;
+        }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .print-only { display: block !important; }
+            
+            body, html, #root { 
+              height: auto !important; 
+              overflow: visible !important; 
+              background: white !important;
+              color: black !important;
+            }
+
+            /* Garante que o conteúdo principal ocupe toda a largura e altura necessária */
+            main {
+              height: auto !important;
+              overflow: visible !important;
+              display: block !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+
+            /* Remove sombras e bordas arredondadas exageradas no papel */
+            .rounded-\[3rem\], .rounded-\[4rem\], .rounded-\[2.5rem\] {
+              border-radius: 0.5rem !important;
+            }
+
+            .shadow-xl, .shadow-2xl, .shadow-sm {
+              shadow: none !important;
+              box-shadow: none !important;
+            }
+
+            /* Evita quebras de linha dentro de blocos de informação */
+            .print-break-inside-avoid {
+              break-inside: avoid;
+            }
+
+            /* Força tabelas a expandirem */
+            table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+            }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fadeIn {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #583FBC; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #6D4FE0; }
+
+        .sst-table-row:nth-child(even) {
+          background-color: rgba(94, 59, 238, 0.03);
+        }
+
+        .dark .sst-table-row:nth-child(even) {
+          background-color: rgba(94, 59, 238, 0.08);
+        }
+
+        input, select, button {
+          touch-action: manipulation;
+        }
+
+        /* Estilos Recharts */
+        .recharts-cartesian-grid-line {
+          stroke: #E5E3F5;
+        }
+        .dark .recharts-cartesian-grid-line {
+          stroke: #362D7840;
+        }
+        .recharts-text {
+          fill: #8E88B8 !important;
+          font-weight: 600;
+        }
+        .dark .recharts-text {
+          fill: #10b98160 !important;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.91.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+  }
+}
+</script>
+</head>
+<body class="text-gray-900 transition-colors duration-300">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>
