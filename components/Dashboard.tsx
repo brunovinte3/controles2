@@ -89,9 +89,12 @@ const Dashboard: React.FC<DashboardProps> = ({ employees, isAdmin }) => {
       const cipaRecord = emp.trainings?.[cipaKey];
       if (cipaRecord && ['VALID', 'EXPIRING'].includes(cipaRecord.status)) s.ciperos++;
 
-      // Brigada (NR23)
-      const brigadaRecord = emp.trainings?.['NR23'];
-      if (brigadaRecord && ['VALID', 'EXPIRING'].includes(brigadaRecord.status)) s.brigadistas++;
+      // Brigada (NR23 / Queima Controlada / Mecanizada)
+      const hasBrigadaTraining = ['NR23', 'NR23QC', 'NR23MEC'].some(k => {
+        const rec = emp.trainings?.[k];
+        return rec && ['VALID', 'EXPIRING'].includes(rec.status);
+      });
+      if (hasBrigadaTraining) s.brigadistas++;
 
       const trainingsObj = emp.trainings && typeof emp.trainings === 'object' ? emp.trainings : {};
       Object.entries(trainingsObj).forEach(([cid, t]) => {
@@ -188,17 +191,21 @@ const Dashboard: React.FC<DashboardProps> = ({ employees, isAdmin }) => {
           matchingCourses.push({ cid: cipaKey, record });
         }
       } else if (type === 'BRIGADISTAS') {
-        const record = emp.trainings?.['NR23'];
-        if (record && ['VALID', 'EXPIRING'].includes(record.status)) {
-          matchFound = true;
-          modalLabel = 'BRIGADISTAS ATIVOS (NR 23)';
-          matchingCourses.push({ cid: 'NR23', record });
-        }
+        const brigadaKeys = ['NR23', 'NR23QC', 'NR23MEC'];
+        brigadaKeys.forEach(cid => {
+          const record = emp.trainings?.[cid];
+          if (record && ['VALID', 'EXPIRING'].includes(record.status)) {
+            matchFound = true;
+            modalLabel = 'BRIGADISTAS ATIVOS (NR 23 / COMBATE)';
+            matchingCourses.push({ cid, record });
+          }
+        });
       } else if (courseId) {
         const record = emp.trainings?.[courseId];
         if (record && record.status === 'EXPIRING') {
           matchFound = true;
-          modalLabel = `VENCIMENTOS PRÓXIMOS (60 DIAS): ${courseId}`;
+          const foundCourse = NR_COURSES.find(c => c.id === courseId);
+          modalLabel = `VENCIMENTOS PRÓXIMOS (60 DIAS): ${foundCourse ? foundCourse.name : courseId}`;
           matchingCourses.push({ cid: courseId, record, days: getDaysRemaining(record.expiryDate) });
         }
       } else {

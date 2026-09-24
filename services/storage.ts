@@ -20,17 +20,35 @@ const DEFAULT_COMPANY: CompanyProfile = {
   footerText: 'Relatório Gerencial de Conformidade Normativa'
 };
 
-const normalizeEmployee = (emp: any): Employee => ({
-  id: String(emp?.id || `emp-${Math.random().toString(36).substring(2, 9)}`),
-  name: String(emp?.name || 'Sem Nome'),
-  registration: String(emp?.registration || '-'),
-  role: String(emp?.role || '-'),
-  setor: String(emp?.setor || 'Geral'),
-  company: String(emp?.company || 'Empresa Padrão'),
-  situation: emp?.situation || 'ATIVO',
-  photoUrl: emp?.photoUrl || undefined,
-  trainings: (emp?.trainings && typeof emp.trainings === 'object') ? emp.trainings : {}
-});
+const normalizeEmployee = (emp: any): Employee => {
+  const trainings: Record<string, any> = (emp?.trainings && typeof emp.trainings === 'object') 
+    ? { ...emp.trainings } 
+    : {};
+
+  // Mapeamento e retrocompatibilidade para NR23QC (Queima Controlada)
+  if (!trainings['NR23QC']) {
+    const qcVal = trainings['NR23 QUEIMA CONTROLADA'] || trainings['NR23_QC'] || trainings['QUEIMA CONTROLADA'] || trainings['NR 23 - QUEIMA CONTROLADA'];
+    if (qcVal) trainings['NR23QC'] = { ...qcVal, courseId: 'NR23QC' };
+  }
+
+  // Mapeamento e retrocompatibilidade para NR23MEC (Mecanizada)
+  if (!trainings['NR23MEC']) {
+    const mecVal = trainings['NR23 MECANIZADA'] || trainings['NR23_MEC'] || trainings['MECANIZADA'] || trainings['NR 23 - MECANIZADA'];
+    if (mecVal) trainings['NR23MEC'] = { ...mecVal, courseId: 'NR23MEC' };
+  }
+
+  return {
+    id: String(emp?.id || `emp-${Math.random().toString(36).substring(2, 9)}`),
+    name: String(emp?.name || 'Sem Nome'),
+    registration: String(emp?.registration || '-'),
+    role: String(emp?.role || '-'),
+    setor: String(emp?.setor || 'Geral'),
+    company: String(emp?.company || 'Empresa Padrão'),
+    situation: emp?.situation || 'ATIVO',
+    photoUrl: emp?.photoUrl || undefined,
+    trainings
+  };
+};
 
 export const StorageService = {
   getCachedEmployees(): Employee[] {

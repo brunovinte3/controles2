@@ -8,6 +8,7 @@ export interface NRCourse {
   validityYears: number | null; 
   description?: string;
   workload?: string;
+  aliases?: string[];
 }
 
 export interface TrainingRecord {

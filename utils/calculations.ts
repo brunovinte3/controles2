@@ -71,8 +71,37 @@ export const formatEmployeeData = (rawData: any[]): Employee[] => {
     });
 
     NR_COURSES.forEach(course => {
-      const courseKey = normalizeKey(course.id);
-      const completionValue = normalizedRow[courseKey];
+      // Prioridade de busca: aliases definidos, id do curso, nome do curso
+      const searchKeys = [
+        course.id,
+        course.name,
+        ...(course.aliases || [])
+      ].map(normalizeKey);
+
+      let completionValue: any = undefined;
+
+      // 1. Busca por correspondência exata de chave normalizada
+      for (const k of searchKeys) {
+        if (normalizedRow[k] !== undefined && normalizedRow[k] !== null && normalizedRow[k] !== '') {
+          completionValue = normalizedRow[k];
+          break;
+        }
+      }
+
+      // 2. Busca por contenção em chaves com tamanho seguro (evita colisão de termos curtos)
+      if (completionValue === undefined) {
+        const rowKeys = Object.keys(normalizedRow);
+        for (const sk of searchKeys) {
+          if (sk.length >= 6) {
+            const found = rowKeys.find(rk => rk === sk || rk.includes(sk));
+            if (found && normalizedRow[found] !== undefined && normalizedRow[found] !== null && normalizedRow[found] !== '') {
+              completionValue = normalizedRow[found];
+              break;
+            }
+          }
+        }
+      }
+
       const status = calculateTrainingStatus(completionValue, course.validityYears);
       const expiryDate = getExpiryDate(completionValue, course.validityYears);
       const parsedDate = parseFlexibleDate(completionValue);

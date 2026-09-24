@@ -45,7 +45,10 @@ const VisitorSearchView: React.FC<VisitorSearchViewProps> = ({ employees }) => {
   };
 
   const isCipero = (emp: Employee) => ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR05']?.status);
-  const isBrigadista = (emp: Employee) => ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23']?.status);
+  const isBrigadista = (emp: Employee) => 
+    ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23']?.status) ||
+    ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23QC']?.status) ||
+    ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23MEC']?.status);
 
   return (
     <div className="space-y-6 animate-fadeIn pb-20">

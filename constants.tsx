@@ -70,7 +70,40 @@ export const NR_COURSES: NRCourse[] = [
     name: 'NR 23 - Incêndio', 
     validityYears: 1, 
     workload: '8h', 
-    description: 'Proteção Contra Incêndios. Medidas de prevenção e procedimentos de emergência.' 
+    description: 'Proteção Contra Incêndios. Medidas de prevenção e procedimentos de emergência.',
+    aliases: ['NR 23', 'NR23', 'NR 23 - INCÊNDIO', 'NR23 INCENDIO', 'BRIGADA', 'BRIGADA DE INCENDIO']
+  },
+  { 
+    id: 'NR23QC', 
+    name: 'NR 23 - Queima Controlada', 
+    validityYears: 1, 
+    workload: '8h', 
+    description: 'Proteção Contra Incêndios em Atividades de Queima Controlada. Medidas preventivas, confecção de aceiros e combate seguro.',
+    aliases: [
+      'NR23 QUEIMA CONTROLADA', 
+      'NR 23 QUEIMA CONTROLADA', 
+      'NR23 - QUEIMA CONTROLADA', 
+      'NR 23 - QUEIMA CONTROLADA', 
+      'QUEIMA CONTROLADA', 
+      'NR23QC', 
+      'NR23_QC'
+    ]
+  },
+  { 
+    id: 'NR23MEC', 
+    name: 'NR 23 - Mecanizada', 
+    validityYears: 1, 
+    workload: '8h', 
+    description: 'Proteção Contra Incêndios com Operações Mecanizadas. Prevenção e combate com veículos pesados, tratores e implementos.',
+    aliases: [
+      'NR23 MECANIZADA', 
+      'NR 23 MECANIZADA', 
+      'NR23 - MECANIZADA', 
+      'NR 23 - MECANIZADA', 
+      'MECANIZADA', 
+      'NR23MEC', 
+      'NR23_MEC'
+    ]
   },
   { 
     id: 'NR26', 

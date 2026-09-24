@@ -80,7 +80,10 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ employees, onUpdate, isAdmi
   }, [filteredEmployees, currentPage, pageSize]);
 
   const isCipero = (emp: Employee) => ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR05']?.status);
-  const isBrigadista = (emp: Employee) => ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23']?.status);
+  const isBrigadista = (emp: Employee) => 
+    ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23']?.status) ||
+    ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23QC']?.status) ||
+    ['VALID', 'EXPIRING'].includes(emp.trainings?.['NR23MEC']?.status);
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();

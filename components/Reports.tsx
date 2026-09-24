@@ -270,7 +270,9 @@ const Reports: React.FC<ReportsProps> = ({ employees }) => {
                   </span>
                 </td>
                 <td className="px-6 py-4">
-                  <p className="font-extrabold text-[#5439C7] text-xs print:text-black">{item.courseId}</p>
+                  <p className="font-extrabold text-[#5439C7] text-xs print:text-black">
+                    {NR_COURSES.find(c => c.id === item.courseId)?.name || item.courseId}
+                  </p>
                   <p className="text-[9px] text-[#8680B0] font-bold uppercase">{item.employee.setor}</p>
                 </td>
                 <td className="px-6 py-4 text-xs font-bold text-[#181236]">
