@@ -2,7 +2,7 @@
 import { TrainingStatus, TrainingRecord, Employee, EmployeeSituation } from '../types';
 import { NR_COURSES } from '../constants';
 
-const parseFlexibleDate = (dateStr: any): Date | null => {
+export const parseFlexibleDate = (dateStr: any): Date | null => {
   if (!dateStr || dateStr === '-' || String(dateStr).toLowerCase() === 'n/a' || dateStr === '') return null;
   if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
   const str = String(dateStr).trim();

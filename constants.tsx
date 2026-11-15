@@ -209,6 +209,25 @@ export const NR_COURSES: NRCourse[] = [
     validityYears: 2,
     workload: '8h',
     description: 'Treinamento de segurança para operação de plataformas de trabalho aéreo e cestos suspensos acoplados conforme as normas de segurança.'
+  },
+  {
+    id: 'GUINDAUTO',
+    name: 'Curso de Caminhão Guindauto',
+    validityYears: 1,
+    workload: '16h',
+    description: 'Treinamento para capacitação, patolamento, içamento e operação segura de caminhão guindauto (Munck) conforme NR 11 e NR 12.',
+    aliases: [
+      'CAMINHAO GUINDAUTO',
+      'CAMINHÃO GUINDAUTO',
+      'CAMINHAO - GUINDAUTO',
+      'CAMINHÃO - GUINDAUTO',
+      'CAMINHAO_GUINDAUTO',
+      'CAMINHAOGUINDAUTO',
+      'CURSO DE CAMINHAO GUINDAUTO',
+      'CURSO DE CAMINHÃO GUINDAUTO',
+      'CURSO CAMINHAO GUINDAUTO',
+      'GUINDAUTO'
+    ]
   }
 ];
 

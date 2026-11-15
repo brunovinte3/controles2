@@ -1,7 +1,7 @@
 
 import { Employee, AdminProfile, CompanyProfile } from '../types';
 import { supabase } from './supabase';
-import { formatEmployeeData } from '../utils/calculations';
+import { formatEmployeeData, calculateTrainingStatus, getExpiryDate, parseFlexibleDate } from '../utils/calculations';
 
 const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbyazZ7cte9PaYLtBnlPNm62UvRjzRttAQsWxsb0vaQI6J_jZ37lgwJ4lxsFp5Do8M8c/exec';
 const LOCAL_STORAGE_CACHE_KEY = 'sst_employees_cache_v2';
@@ -35,6 +35,46 @@ const normalizeEmployee = (emp: any): Employee => {
   if (!trainings['NR23MEC']) {
     const mecVal = trainings['NR23 MECANIZADA'] || trainings['NR23_MEC'] || trainings['MECANIZADA'] || trainings['NR 23 - MECANIZADA'];
     if (mecVal) trainings['NR23MEC'] = { ...mecVal, courseId: 'NR23MEC' };
+  }
+
+  // Mapeamento e retrocompatibilidade para GUINDAUTO (Caminhão Guindauto)
+  if (!trainings['GUINDAUTO']) {
+    const guindVal =
+      trainings['CAMINHAO GUINDAUTO'] ||
+      trainings['CAMINHÃO GUINDAUTO'] ||
+      trainings['CAMINHAOGUINDAUTO'] ||
+      trainings['CAMINHAO_GUINDAUTO'] ||
+      trainings['CURSO DE CAMINHAO GUINDAUTO'] ||
+      trainings['CURSO DE CAMINHÃO GUINDAUTO'];
+
+    if (guindVal && typeof guindVal === 'object') {
+      trainings['GUINDAUTO'] = { ...guindVal, courseId: 'GUINDAUTO' };
+    } else {
+      const rawColVal =
+        guindVal ??
+        emp?.['CAMINHAO GUINDAUTO'] ??
+        emp?.['CAMINHÃO GUINDAUTO'] ??
+        emp?.['caminhao_guindauto'] ??
+        emp?.['CAMINHAO_GUINDAUTO'] ??
+        emp?.['CAMINHAOGUINDAUTO'] ??
+        emp?.['GUINDAUTO'] ??
+        emp?.['guindauto'];
+
+      if (rawColVal !== undefined && rawColVal !== null && rawColVal !== '') {
+        if (typeof rawColVal === 'object' && rawColVal.status) {
+          trainings['GUINDAUTO'] = { ...rawColVal, courseId: 'GUINDAUTO' };
+        } else {
+          const completionStr = String(rawColVal);
+          const parsedDate = parseFlexibleDate(completionStr);
+          trainings['GUINDAUTO'] = {
+            courseId: 'GUINDAUTO',
+            completionDate: parsedDate ? parsedDate.toISOString().split('T')[0] : undefined,
+            expiryDate: getExpiryDate(completionStr, 1),
+            status: calculateTrainingStatus(completionStr, 1)
+          };
+        }
+      }
+    }
   }
 
   return {
