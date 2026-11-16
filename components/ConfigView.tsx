@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
-import { AdminProfile } from '../types';
+import { AdminProfile, Employee } from '../types';
 
-const ConfigView: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
+const ConfigView: React.FC<{ onUpdate: (updatedEmployees?: Employee[]) => void }> = ({ onUpdate }) => {
   const [url, setUrl] = useState(StorageService.getSheetsUrl());
   const [status, setStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
+  const [syncStats, setSyncStats] = useState('');
   const [lastSync, setLastSync] = useState<string | null>(StorageService.getLastSyncTime());
   
   const initialAdmin = StorageService.getAdminProfile();
@@ -34,14 +35,16 @@ const ConfigView: React.FC<{ onUpdate: () => void }> = ({ onUpdate }) => {
 
     setStatus('testing');
     setErrorMessage('');
+    setSyncStats('');
     
     try {
       StorageService.saveSheetsUrl(cleanUrl);
-      const success = await StorageService.syncWithSheets();
-      if (success) {
+      const result = await StorageService.forceSync();
+      if (result.success) {
         setStatus('success');
         setLastSync(StorageService.getLastSyncTime());
-        onUpdate();
+        setSyncStats(`${result.employees.length} registros em ${(result.durationMs / 1000).toFixed(1)}s`);
+        onUpdate(result.employees);
       } else {
         setStatus('error');
         setErrorMessage('O Google respondeu mas o formato dos dados é incompatível.');
@@ -140,13 +143,13 @@ NOTIFY pgrst, 'reload schema';`;
               disabled={status === 'testing'}
               className="w-full py-3.5 bg-[#5439C7] hover:bg-[#442DA8] text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-lg shadow-purple-950/20 active:scale-95 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              <span>{status === 'testing' ? '⌛ Sincronizando com Google Sheets...' : 'Sincronizar e Atualizar Agora'}</span>
-              <span>🔄</span>
+              <span>{status === 'testing' ? '⌛ Forçando Sincronia Rápida...' : 'Forçar Sincronia com Banco de Dados'}</span>
+              <span>⚡</span>
             </button>
 
             {status === 'success' && (
               <div className="bg-[#E6FAF0] text-[#00A850] p-3 rounded-xl text-center font-bold text-xs border border-[#BDEECF] animate-fadeIn">
-                ✅ Sincronizado com Sucesso com a Planilha!
+                ✅ Sincronizado com Sucesso! {syncStats ? `(${syncStats})` : ''}
               </div>
             )}
             

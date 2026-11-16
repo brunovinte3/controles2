@@ -141,26 +141,10 @@ export const StorageService = {
     }
   },
 
-  async getEmployees(): Promise<Employee[]> {
-    const cached = this.getCachedEmployees();
-
-    // Tentar carregar da planilha Google com timeout estrito de 6 segundos
-    try {
-      const sheetsData = await this.fetchDirectlyFromSheets();
-      if (sheetsData.length > 0) {
-        this.setCachedEmployees(sheetsData);
-        // Salva em segundo plano no Supabase sem bloquear a UI
-        this.saveEmployees(sheetsData).catch(() => {});
-        return sheetsData;
-      }
-    } catch (e) {
-      console.warn("Busca do Google Sheets falhou ou atingiu timeout");
-    }
-
-    // Tentar carregar do Supabase com timeout de 4 segundos
+  async fetchFromSupabase(timeoutMs = 3500): Promise<Employee[]> {
     try {
       const timeoutPromise = new Promise<{ data: null, error: any }>((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout Supabase")), 4000)
+        setTimeout(() => reject(new Error("Timeout Supabase")), timeoutMs)
       );
 
       const queryPromise = supabase.from('employees').select('*').order('name');
@@ -174,8 +158,37 @@ export const StorageService = {
     } catch (e) {
       console.warn("Supabase falhou ou atingiu timeout");
     }
+    return [];
+  },
 
-    // Se a rede falhar mas tínhamos cache local, retorna o cache para não deixar o usuário no vácuo
+  async getEmployees(onBackgroundUpdate?: (data: Employee[]) => void): Promise<Employee[]> {
+    const cached = this.getCachedEmployees();
+
+    // Executa Supabase e Sheets em paralelo para não bloquear esperando 6s do Sheets antes do banco
+    const supaPromise = this.fetchFromSupabase(3500);
+    const sheetsPromise = this.fetchDirectlyFromSheets(6000);
+
+    // Tenta responder com o que chegar primeiro com dados válidos (Supabase geralmente <300ms)
+    const fastSupa = await supaPromise;
+    if (fastSupa.length > 0) {
+      // Atualiza em segundo plano caso o Sheets retorne dados atualizados
+      sheetsPromise.then((sheetsData) => {
+        if (sheetsData.length > 0) {
+          this.setCachedEmployees(sheetsData);
+          this.saveEmployees(sheetsData).catch(() => {});
+          if (onBackgroundUpdate) onBackgroundUpdate(sheetsData);
+        }
+      }).catch(() => {});
+      return fastSupa;
+    }
+
+    const sheetsData = await sheetsPromise;
+    if (sheetsData.length > 0) {
+      this.setCachedEmployees(sheetsData);
+      this.saveEmployees(sheetsData).catch(() => {});
+      return sheetsData;
+    }
+
     if (cached.length > 0) {
       return cached;
     }
@@ -183,12 +196,12 @@ export const StorageService = {
     return [];
   },
 
-  async fetchDirectlyFromSheets(): Promise<Employee[]> {
+  async fetchDirectlyFromSheets(timeoutMs = 6000): Promise<Employee[]> {
     const url = this.getSheetsUrl();
     if (!url) return [];
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 segundos max
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(url, { 
@@ -202,7 +215,7 @@ export const StorageService = {
       const text = await response.text();
       const data = JSON.parse(text);
       if (Array.isArray(data)) {
-        const formatted = formatEmployeeData(data).map(normalizeEmployee);
+        const formatted = formatEmployeeData(data);
         if (formatted.length > 0) {
            this.setLastSyncTime();
         }
@@ -220,7 +233,15 @@ export const StorageService = {
     const normalized = employees.map(normalizeEmployee);
     this.setCachedEmployees(normalized);
     try {
-      await supabase.from('employees').upsert(normalized, { onConflict: 'id' });
+      // Upsert em lotes paralelos para evitar gargalos em planilhas grandes
+      const CHUNK_SIZE = 150;
+      const chunks: Employee[][] = [];
+      for (let i = 0; i < normalized.length; i += CHUNK_SIZE) {
+        chunks.push(normalized.slice(i, i + CHUNK_SIZE));
+      }
+      await Promise.all(
+        chunks.map(chunk => supabase.from('employees').upsert(chunk, { onConflict: 'id' }))
+      );
     } catch (err) {
       console.warn("Erro ao sincronizar com Supabase em segundo plano");
     }
@@ -247,14 +268,56 @@ export const StorageService = {
     }
   },
 
-  async syncWithSheets(): Promise<boolean> {
-    const data = await this.fetchDirectlyFromSheets();
-    if (data.length > 0) {
-      await this.saveEmployees(data);
+  async forceSync(): Promise<{ success: boolean; employees: Employee[]; source: 'sheets+supabase' | 'supabase' | 'cache'; durationMs: number }> {
+    const startTime = performance.now();
+
+    // Dispara Google Sheets e Supabase simultaneamente (elimina espera sequencial)
+    const [sheetsData, supaData] = await Promise.all([
+      this.fetchDirectlyFromSheets(7500),
+      this.fetchFromSupabase(3500)
+    ]);
+
+    if (sheetsData.length > 0) {
+      this.setCachedEmployees(sheetsData);
       this.setLastSyncTime();
-      return true;
+
+      // Sincroniza banco Supabase em paralelo com limite de espera de 2.5s para manter resposta rápida
+      await Promise.race([
+        this.saveEmployees(sheetsData),
+        new Promise(resolve => setTimeout(resolve, 2500))
+      ]);
+
+      return {
+        success: true,
+        employees: sheetsData,
+        source: 'sheets+supabase',
+        durationMs: Math.round(performance.now() - startTime)
+      };
     }
-    return false;
+
+    if (supaData.length > 0) {
+      this.setCachedEmployees(supaData);
+      this.setLastSyncTime();
+      return {
+        success: true,
+        employees: supaData,
+        source: 'supabase',
+        durationMs: Math.round(performance.now() - startTime)
+      };
+    }
+
+    const cached = this.getCachedEmployees();
+    return {
+      success: cached.length > 0,
+      employees: cached,
+      source: 'cache',
+      durationMs: Math.round(performance.now() - startTime)
+    };
+  },
+
+  async syncWithSheets(): Promise<boolean> {
+    const result = await this.forceSync();
+    return result.success;
   },
 
   getSheetsUrl(): string {

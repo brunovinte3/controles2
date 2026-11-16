@@ -6,7 +6,7 @@ import { StorageService } from '../services/storage';
 
 interface EmployeeViewProps {
   employees: Employee[];
-  onUpdate: () => void;
+  onUpdate: (updatedEmployees?: Employee[]) => void;
   isAdmin: boolean;
 }
 
@@ -92,7 +92,7 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ employees, onUpdate, isAdmi
     try {
       await StorageService.updateEmployee(editingEmp);
       setEditingEmp(null);
-      onUpdate();
+      onUpdate(StorageService.getCachedEmployees());
     } catch (err) {
       alert("Erro ao salvar dados do funcionário.");
     }
@@ -160,7 +160,7 @@ const EmployeeView: React.FC<EmployeeViewProps> = ({ employees, onUpdate, isAdmi
       setImportPreview([]);
       setImportText('');
       setShowBulkImport(false);
-      onUpdate();
+      onUpdate(StorageService.getCachedEmployees());
       alert(`${importPreview.length} registros atualizados!`);
     } catch (err) {
       alert("Erro na sincronização.");

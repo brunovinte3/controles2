@@ -22,14 +22,18 @@ export const parseFlexibleDate = (dateStr: any): Date | null => {
   return isNaN(d.getTime()) ? null : d;
 };
 
-export const getDaysRemaining = (expiryDate: string | undefined): number | null => {
+export const getDaysRemaining = (expiryDate: string | undefined, todayMidnightMs?: number): number | null => {
   if (!expiryDate) return null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  let baseMs = todayMidnightMs;
+  if (baseMs === undefined) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    baseMs = today.getTime();
+  }
   const expiry = new Date(expiryDate);
   if (isNaN(expiry.getTime())) return null;
   expiry.setHours(0, 0, 0, 0);
-  const diffTime = expiry.getTime() - today.getTime();
+  const diffTime = expiry.getTime() - baseMs;
   const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   return isNaN(days) ? null : days;
 };
@@ -60,59 +64,89 @@ const normalizeKey = (key: string) =>
      .replace(/[\u0300-\u036f]/g, "") 
      .replace(/[-_\s.]/g, ""); 
 
+// Pré-computa as chaves normalizadas uma única vez para acelerar processamento de grandes planilhas
+const PRECOMPUTED_COURSES = NR_COURSES.map(course => ({
+  course,
+  searchKeys: [course.id, course.name, ...(course.aliases || [])].map(normalizeKey)
+}));
+
 export const formatEmployeeData = (rawData: any[]): Employee[] => {
   if (!Array.isArray(rawData)) return [];
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayMidnightMs = today.getTime();
+
   return rawData.map((row, idx) => {
     const trainings: Record<string, TrainingRecord> = {};
-    const normalizedRow: any = {};
+    const normalizedRow: Record<string, any> = {};
     
-    Object.keys(row).forEach(k => {
+    const rawKeys = Object.keys(row);
+    for (let i = 0; i < rawKeys.length; i++) {
+      const k = rawKeys[i];
       normalizedRow[normalizeKey(k)] = row[k];
-    });
+    }
+    const rowKeys = Object.keys(normalizedRow);
 
-    NR_COURSES.forEach(course => {
-      // Prioridade de busca: aliases definidos, id do curso, nome do curso
-      const searchKeys = [
-        course.id,
-        course.name,
-        ...(course.aliases || [])
-      ].map(normalizeKey);
-
+    for (let cIdx = 0; cIdx < PRECOMPUTED_COURSES.length; cIdx++) {
+      const { course, searchKeys } = PRECOMPUTED_COURSES[cIdx];
       let completionValue: any = undefined;
 
       // 1. Busca por correspondência exata de chave normalizada
-      for (const k of searchKeys) {
-        if (normalizedRow[k] !== undefined && normalizedRow[k] !== null && normalizedRow[k] !== '') {
-          completionValue = normalizedRow[k];
+      for (let i = 0; i < searchKeys.length; i++) {
+        const val = normalizedRow[searchKeys[i]];
+        if (val !== undefined && val !== null && val !== '') {
+          completionValue = val;
           break;
         }
       }
 
       // 2. Busca por contenção em chaves com tamanho seguro (evita colisão de termos curtos)
       if (completionValue === undefined) {
-        const rowKeys = Object.keys(normalizedRow);
-        for (const sk of searchKeys) {
+        for (let i = 0; i < searchKeys.length; i++) {
+          const sk = searchKeys[i];
           if (sk.length >= 6) {
             const found = rowKeys.find(rk => rk === sk || rk.includes(sk));
-            if (found && normalizedRow[found] !== undefined && normalizedRow[found] !== null && normalizedRow[found] !== '') {
-              completionValue = normalizedRow[found];
-              break;
+            if (found !== undefined) {
+              const val = normalizedRow[found];
+              if (val !== undefined && val !== null && val !== '') {
+                completionValue = val;
+                break;
+              }
             }
           }
         }
       }
 
-      const status = calculateTrainingStatus(completionValue, course.validityYears);
-      const expiryDate = getExpiryDate(completionValue, course.validityYears);
+      // Parse único por célula (elimina parsing repetido)
       const parsedDate = parseFlexibleDate(completionValue);
-      
+      let completionDate: string | undefined;
+      let expiryDate: string | undefined;
+      let status: TrainingStatus = 'NOT_TRAINED';
+
+      if (parsedDate) {
+        completionDate = parsedDate.toISOString().split('T')[0];
+        if (course.validityYears === null) {
+          status = 'VALID';
+        } else {
+          const expiry = new Date(parsedDate);
+          expiry.setFullYear(expiry.getFullYear() + course.validityYears);
+          expiryDate = expiry.toISOString().split('T')[0];
+          expiry.setHours(0, 0, 0, 0);
+          const daysRemaining = Math.ceil((expiry.getTime() - todayMidnightMs) / (1000 * 60 * 60 * 24));
+          if (daysRemaining < 0) status = 'EXPIRED';
+          else if (daysRemaining <= 60) status = 'EXPIRING';
+          else status = 'VALID';
+        }
+      }
+
       trainings[course.id] = {
         courseId: course.id,
-        completionDate: parsedDate ? parsedDate.toISOString().split('T')[0] : undefined,
+        completionDate,
         expiryDate,
         status,
       };
-    });
+    }
 
     const registration = String(normalizedRow['MATRICULA'] || normalizedRow['REGISTRO'] || normalizedRow['RE'] || `ID-${idx}`).trim();
     const id = row.id || registration; 
@@ -122,7 +156,6 @@ export const formatEmployeeData = (rawData: any[]): Employee[] => {
     const sitValue = String(normalizedRow['SITUACAO'] || normalizedRow['STATUS'] || '').toUpperCase().trim();
     if (sitValue === 'DEMITIDO' || sitValue === 'DEMITIDA' || sitValue === 'DESLIGADO' || sitValue === 'DESLIGADA') situation = 'DEMITIDO';
     else if (sitValue === 'AFASTADO' || sitValue === 'AFASTADA' || sitValue === 'LICENCA') situation = 'AFASTADO';
-    // Se vazio ou qualquer outro valor não reconhecido, assume ATIVO conforme regra 2
     
     return {
       id: id,

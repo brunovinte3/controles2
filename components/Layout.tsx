@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StorageService } from '../services/storage';
-import { CompanyProfile, AdminProfile } from '../types';
+import { CompanyProfile, AdminProfile, Employee } from '../types';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,7 +8,7 @@ interface LayoutProps {
   setActiveTab: (tab: string) => void;
   userRole: 'admin' | 'visitor';
   onLogout: () => void;
-  onRefreshData?: () => void;
+  onRefreshData?: (updatedEmployees?: Employee[]) => void;
 }
 
 const Layout: React.FC<LayoutProps> = ({ 
@@ -25,6 +25,7 @@ const Layout: React.FC<LayoutProps> = ({
     admin: StorageService.getAdminProfile()
   });
   const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(StorageService.getLastSyncTime());
   const [globalSearch, setGlobalSearch] = useState('');
@@ -43,13 +44,21 @@ const Layout: React.FC<LayoutProps> = ({
   }, []);
 
   const handleSync = async () => {
+    if (isSyncing) return;
     setIsSyncing(true);
-    const success = await StorageService.syncWithSheets();
-    if (success) {
+    setSyncFeedback(null);
+    try {
+      const result = await StorageService.forceSync();
       setLastSync(StorageService.getLastSyncTime());
-      if (onRefreshData) onRefreshData();
+      if (result.success) {
+        if (onRefreshData) onRefreshData(result.employees);
+        const seconds = (result.durationMs / 1000).toFixed(1);
+        setSyncFeedback(`Atualizado (${seconds}s)`);
+        setTimeout(() => setSyncFeedback(null), 3500);
+      }
+    } finally {
+      setIsSyncing(false);
     }
-    setIsSyncing(false);
   };
   
   const allTabs = [
@@ -176,11 +185,17 @@ const Layout: React.FC<LayoutProps> = ({
                 <button
                   onClick={handleSync}
                   disabled={isSyncing}
-                  className={`w-full text-left px-4 py-3 rounded-2xl flex items-center gap-3 transition-all border border-[#3E328A] bg-[#271F5E]/60 text-[#B3ADDF] hover:text-white hover:bg-[#553AC8]/40 hover:border-[#553AC8] ${isSyncing ? 'animate-pulse' : ''}`}
+                  className={`w-full text-left px-4 py-3 rounded-2xl flex items-center gap-3 transition-all border ${
+                    syncFeedback
+                      ? 'border-[#00D26A]/60 bg-[#00D26A]/15 text-[#00D26A]'
+                      : 'border-[#3E328A] bg-[#271F5E]/60 text-[#B3ADDF] hover:text-white hover:bg-[#553AC8]/40 hover:border-[#553AC8]'
+                  } ${isSyncing ? 'animate-pulse' : ''}`}
                 >
-                  <span className={`text-base ${isSyncing ? 'animate-spin text-[#00D26A]' : ''}`}>🔄</span>
+                  <span className={`text-base ${isSyncing ? 'animate-spin text-[#00D26A]' : ''}`}>
+                    {syncFeedback ? '✅' : isSyncing ? '🔄' : '⚡'}
+                  </span>
                   <span className="text-[11px] font-bold uppercase tracking-wider">
-                    {isSyncing ? 'Sincronizando...' : 'Sincronizar Dados'}
+                    {isSyncing ? 'Sincronizando...' : syncFeedback ? syncFeedback : 'Forçar Sincronia'}
                   </span>
                 </button>
               </div>
@@ -225,10 +240,10 @@ const Layout: React.FC<LayoutProps> = ({
               </p>
             </div>
 
-            {/* Ações do Topo: Busca + Notificação + Perfil */}
-            <div className="flex items-center gap-3 w-full md:w-auto justify-end">
+            {/* Ações do Topo: Busca + Forçar Sincronia + Notificação + Perfil */}
+            <div className="flex items-center gap-3 w-full md:w-auto justify-end flex-wrap sm:flex-nowrap">
               {/* Barra de Pesquisa Estilo Cápsula da Referência */}
-              <div className="relative flex-1 md:w-64 lg:w-72">
+              <div className="relative flex-1 md:w-60 lg:w-72">
                 <input 
                   type="text" 
                   value={globalSearch}
@@ -240,6 +255,27 @@ const Layout: React.FC<LayoutProps> = ({
                   🔍
                 </span>
               </div>
+
+              {/* Botão Rápido: Forçar Sincronia com Banco de Dados */}
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                title="Forçar sincronia rápida com Banco de Dados e Planilha"
+                className={`h-10 px-3.5 rounded-2xl border flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider transition-all active:scale-95 cursor-pointer ${
+                  syncFeedback
+                    ? 'bg-[#00D26A]/20 border-[#00D26A] text-[#00D26A] shadow-[0_0_15px_rgba(0,210,106,0.25)]'
+                    : isSyncing
+                      ? 'bg-[#553AC8] border-[#7C5DFA] text-white animate-pulse'
+                      : 'bg-[#2C2465] hover:bg-[#553AC8] border-[#3E3486] hover:border-[#7C5DFA] text-white shadow-md'
+                }`}
+              >
+                <span className={`text-sm ${isSyncing ? 'animate-spin' : ''}`}>
+                  {syncFeedback ? '✅' : isSyncing ? '🔄' : '⚡'}
+                </span>
+                <span className="hidden sm:inline">
+                  {isSyncing ? 'Sincronizando...' : syncFeedback ? syncFeedback : 'Forçar Sincronia'}
+                </span>
+              </button>
 
               {/* Botão de Notificação com Ponto Neon Verde */}
               <button 

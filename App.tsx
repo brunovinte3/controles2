@@ -27,10 +27,31 @@ const App: React.FC = () => {
     }
   }, [userRole]);
 
-  const loadData = async (forceSync = false) => {
+  const loadData = async (forceSync = false, preloadedEmployees?: Employee[]) => {
+    if (preloadedEmployees) {
+      setEmployees(preloadedEmployees);
+      setIsLoading(false);
+      return;
+    }
+
+    const cached = StorageService.getCachedEmployees();
+    if (!forceSync && cached.length > 0) {
+      // Renderiza instantaneamente do cache e atualiza em segundo plano (0ms na abertura)
+      setEmployees(cached);
+      setIsLoading(false);
+      StorageService.getEmployees((sheetsData) => {
+        setEmployees(sheetsData);
+      }).then((data) => {
+        if (data.length > 0) setEmployees(data);
+      }).catch(() => {});
+      return;
+    }
+
     setIsLoading(true);
     try {
-      const data = await StorageService.getEmployees();
+      const data = forceSync
+        ? (await StorageService.forceSync()).employees
+        : await StorageService.getEmployees((sheetsData) => setEmployees(sheetsData));
       setEmployees(data);
     } catch (error) {
       console.error("Erro ao carregar dados:", error);
@@ -41,7 +62,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (userRole) {
-      loadData();
+      loadData(false);
     }
   }, [userRole]);
 
@@ -61,11 +82,11 @@ const App: React.FC = () => {
 
     switch (activeTab) {
       case 'dashboard': return <Dashboard employees={employees} isAdmin={isAdmin} />;
-      case 'employees': return isAdmin ? <EmployeeView employees={employees} onUpdate={loadData} isAdmin={isAdmin} /> : null;
+      case 'employees': return isAdmin ? <EmployeeView employees={employees} onUpdate={(updated) => loadData(false, updated)} isAdmin={isAdmin} /> : null;
       case 'visitor_search': return <VisitorSearchView employees={employees} />;
       case 'reports': return <Reports employees={employees} />;
       case 'matrix': return <MatrixView />;
-      case 'config': return isAdmin ? <ConfigView onUpdate={loadData} /> : null;
+      case 'config': return isAdmin ? <ConfigView onUpdate={(updated) => loadData(false, updated)} /> : null;
       default: return <Dashboard employees={employees} isAdmin={isAdmin} />;
     }
   };
@@ -76,7 +97,7 @@ const App: React.FC = () => {
       setActiveTab={setActiveTab} 
       userRole={userRole} 
       onLogout={() => setUserRole(null)}
-      onRefreshData={() => loadData(true)}
+      onRefreshData={(updated) => loadData(!updated, updated)}
     >
       {renderContent()}
     </Layout>
